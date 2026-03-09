@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Siggy — The Arcane Guardian of Ritual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Animated background particles -->
+  <canvas id="particles"></canvas>
+
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="siggy-avatar">
+          <div class="cat-eyes">
+            <span class="eye left-eye"></span>
+            <span class="eye right-eye"></span>
+          </div>
+          <div class="wizard-hat"></div>
+        </div>
+        <div class="header-text">
+          <h1 class="title">Siggy</h1>
+          <p class="subtitle">Arcane Guardian of Ritual</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-dot"></div>
+        <span class="status-text">Channeling the Grid</span>
+      </div>
+    </header>
+
+    <!-- Chat area -->
+    <main class="chat-container" id="chatContainer">
+      <div class="welcome-message">
+        <div class="welcome-icon">&#9733;</div>
+        <p class="welcome-title">The Ritual Awaits</p>
+        <p class="welcome-sub">Siggy sees you, traveler. Speak, and the arcane guardian shall respond.</p>
+      </div>
+    </main>
+
+    <!-- Input area -->
+    <footer class="input-area">
+      <div class="input-wrapper">
+        <textarea
+          id="messageInput"
+          placeholder="Speak to Siggy..."
+          rows="1"
+          maxlength="2000"
+        ></textarea>
+        <button id="sendBtn" class="send-btn" title="Send">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+      <p class="footer-note">Siggy traverses the multiverse powered by Ritual's open AI infrastructure</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
