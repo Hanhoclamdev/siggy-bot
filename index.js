@@ -1,7 +1,5 @@
 // index.js - Entry point cho Siggy (Discord bot + Web server)
 
-require('dotenv').config();  // load .env nếu có (tốt cho local dev, Railway dùng service variables nên ko bắt buộc)
-
 console.log('🚀 Starting Siggy...');
 
 let botStatus = 'pending';
