@@ -5,45 +5,20 @@ const path = require('path');
 
 // --- Config ---
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const MULERUN_API_KEY = process.env.MULERUN_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 if (!DISCORD_TOKEN) {
   console.error('Missing DISCORD_TOKEN environment variable');
   process.exit(1);
 }
-if (!MULERUN_API_KEY && !OPENAI_API_KEY) {
-  console.error('At least one of MULERUN_API_KEY or OPENAI_API_KEY must be set');
+if (!OPENAI_API_KEY) {
+  console.error('Missing OPENAI_API_KEY environment variable');
   process.exit(1);
 }
 
 const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'system-prompt.txt'), 'utf8');
 
-// --- Dual Provider Setup (Round-Robin, MuleRun first) ---
-const providers = [];
-
-if (MULERUN_API_KEY) {
-  providers.push({
-    name: 'MuleRun',
-    client: new OpenAI({ apiKey: MULERUN_API_KEY, baseURL: 'https://api.mulerun.com/v1' }),
-    model: process.env.MULERUN_MODEL || 'gpt-4.1-mini',
-  });
-}
-if (OPENAI_API_KEY) {
-  providers.push({
-    name: 'OpenAI',
-    client: new OpenAI({ apiKey: OPENAI_API_KEY }),
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-  });
-}
-
-let providerIndex = 0; // starts with MuleRun (index 0) since it's pushed first
-
-function getNextProvider() {
-  const provider = providers[providerIndex % providers.length];
-  providerIndex++;
-  return provider;
-}
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 // --- Discord Client ---
 const client = new Client({
@@ -75,13 +50,32 @@ function addToHistory(channelId, role, content) {
   }
 }
 
+// --- Helper: gọi OpenAI và trả về reply ---
+async function getAIReply(channelId, userMessage) {
+  addToHistory(channelId, 'user', userMessage);
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...getHistory(channelId),
+    ],
+    max_tokens: 500,
+    temperature: 0.9,
+  });
+
+  const reply = completion.choices[0].message.content;
+  addToHistory(channelId, 'assistant', reply);
+  return reply;
+}
+
 // --- Bot ready ---
 client.once('ready', () => {
   console.log(`Siggy is online as ${client.user.tag}`);
   client.user.setActivity('Channeling the Grid', { type: 3 }); // "Watching"
 });
 
-// --- Message handler ---
+// --- Message handler (mention, reply, DM) ---
 client.on('messageCreate', async (message) => {
   // Ignore bots
   if (message.author.bot) return;
@@ -119,42 +113,8 @@ client.on('messageCreate', async (message) => {
     await message.channel.sendTyping();
   } catch (_) {}
 
-  // Add to history and get response
-  const channelId = message.channel.id;
-  addToHistory(channelId, 'user', userMessage);
-
-  // Round-robin with fallback: try primary provider, fallback to the other on error
-  let reply = null;
-  const primary = getNextProvider();
-  const fallback = providers.length > 1
-    ? providers.find(p => p.name !== primary.name)
-    : null;
-
-  for (const provider of [primary, fallback].filter(Boolean)) {
-    try {
-      console.log(`[${provider.name}] Calling model: ${provider.model}`);
-      const completion = await provider.client.chat.completions.create({
-        model: provider.model,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...getHistory(channelId),
-        ],
-        max_tokens: 500,
-        temperature: 0.9,
-      });
-
-      reply = completion.choices[0].message.content;
-      break; // success, stop trying
-    } catch (err) {
-      console.error(`[${provider.name}] Error:`, err.message);
-      if (provider === primary && fallback) {
-        console.log(`Falling back to ${fallback.name}...`);
-      }
-    }
-  }
-
-  if (reply) {
-    addToHistory(channelId, 'assistant', reply);
+  try {
+    const reply = await getAIReply(message.channel.id, userMessage);
 
     // Discord message limit is 2000 chars
     if (reply.length <= 2000) {
@@ -165,8 +125,46 @@ client.on('messageCreate', async (message) => {
         await message.channel.send(chunk);
       }
     }
-  } else {
+  } catch (err) {
+    console.error('OpenAI error:', err.message);
     await message.reply('*gazes into the void* The arcane channels are disrupted. Try again, traveler.');
+  }
+});
+
+// --- Slash command handler ---
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  // /clear — xóa lịch sử hội thoại
+  if (commandName === 'clear') {
+    conversations.delete(interaction.channelId);
+    return interaction.reply('*waves paw* Memory cleared. A fresh timeline begins.');
+  }
+
+  // Tạo prompt tùy theo command
+  let userMessage = '';
+
+  if (commandName === 'ask') {
+    userMessage = interaction.options.getString('question');
+  } else if (commandName === 'lore') {
+    userMessage = 'Tell me a short mystical lore story about your multiverse adventures as Siggy the wizard cat.';
+  } else if (commandName === 'ritual') {
+    userMessage = 'Explain the Ritual ecosystem to me — what is it, what does it do, and why does it matter?';
+  } else if (commandName === 'gm') {
+    userMessage = 'gm';
+  }
+
+  // Defer reply — bot có 3 giây để phản hồi, defer để có thêm thời gian chờ OpenAI
+  await interaction.deferReply();
+
+  try {
+    const reply = await getAIReply(interaction.channelId, userMessage);
+    await interaction.editReply(reply);
+  } catch (err) {
+    console.error('Slash command OpenAI error:', err.message);
+    await interaction.editReply('*gazes into the void* The arcane channels are disrupted. Try again, traveler.');
   }
 });
 
